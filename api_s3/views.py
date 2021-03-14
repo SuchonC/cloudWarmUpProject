@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 import boto3
 import os
+import hashlib
+import base64
 
 if not "AWS_ACCESS_KEY_ID" in os.environ:
     print("Environment AWS_ACCESS_KEY_ID not found")
@@ -17,8 +19,27 @@ s3 = boto3.client(
 
 BUCKET_NAME = "s3warmup"
 
-def hash(content):
-    return content
+def hash(password):
+    salt = os.urandom(32)
+    key = hashlib.pbkdf2_hmac(
+        'sha512',  # The hash digest algorithm for HMAC
+        password.encode('utf-8'),  # Convert the password to bytes
+        salt,  # Provide the salt
+        100000  # Iterations
+    )
+    return base64.b64encode(salt + key).decode('utf-8')
+
+def verify_password(hashed_password, password):
+    hashed_password = base64.b64decode(hashed_password.encode('utf-8'))
+    salt = hashed_password[:32]
+    key = hashed_password[32:]
+    new_key = hashlib.pbkdf2_hmac(
+        'sha512',  # The hash digest algorithm for HMAC
+        password.encode('utf-8'),  # Convert the password to bytes
+        salt,  # Provide the salt
+        100000  # Iterations
+    )
+    return new_key == key
 
 def getJson(message, code=200):
     return JsonResponse({
@@ -59,7 +80,7 @@ def handleLogin(request):
     except:
         return getJson("Login failed")
 
-    if hash(password).encode() == byte_hashed_password:
+    if verify_password(byte_hashed_password.decode(), password):
         return getJson("Login successfully!")
 
     return getJson("Username not found or password is incorrect!", 401)
@@ -78,8 +99,8 @@ def handleUpdatePassword(request):
         return getJson("Username not found", 404)
     except:
         return getJson("Update password failed")
-    
-    if hash(old_password).encode() != byte_hashed_old_password:
+
+    if not verify_password(byte_hashed_old_password.decode(), old_password):
         return getJson("Password doesn't match")
 
     # re-upload file with hashed new password as file content
