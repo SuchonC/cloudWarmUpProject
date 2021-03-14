@@ -1,5 +1,4 @@
-from botocore.retries import bucket
-from django.http.response import HttpResponse
+from django.http import JsonResponse
 import boto3
 import os
 
@@ -21,67 +20,79 @@ BUCKET_NAME = "s3warmup"
 def hash(content):
     return content
 
+def getJson(message, code=200):
+    return JsonResponse({
+        "message": message
+    }, status = code)
+
 def handleNewUser(request):
-    username = request.GET.get("username", None)
-    password = request.GET.get("password", None)
+    username = request.POST.get("username", None)
+    password = request.POST.get("password", None)
     if not username or not password:
-        return HttpResponse("Username and password are needed")
+        return getJson("Username and password are required")
 
-    byte_hashed_password = hash(password).encode()
     try:
-        s3.put_object(Body=byte_hashed_password, Key=username, Bucket=BUCKET_NAME)
-    except:
-        return HttpResponse("Create user failed")
+        s3.head_object(Bucket=BUCKET_NAME, Key=username)
+    except s3.exceptions.ClientError: # username not found -> available to user
+        byte_hashed_password = hash(password).encode()
 
-    return HttpResponse("Done")
+        try:
+            s3.put_object(Body=byte_hashed_password, Key=username, Bucket=BUCKET_NAME)
+        except:
+            return getJson("Create account failed")
+
+        return getJson("Create account successfully!")
+    
+    return getJson("This username is already existed!")
 
 def handleLogin(request):
-    username = request.GET.get("username", None)
-    password = request.GET.get("password", None)
+    username = request.POST.get("username", None)
+    password = request.POST.get("password", None)
     if not username or not password:
-        return HttpResponse("Username and password are required")
+        return getJson("Username and password are required")
     
     byte_hashed_password = None
     try:
         byte_hashed_password = s3.get_object(Bucket=BUCKET_NAME, Key=username)['Body'].read()
     except s3.exceptions.NoSuchKey:
-        return HttpResponse("Username not found")
+        return getJson("Username not found or password is incorrect!")
     except:
-        return HttpResponse("Login failed")
+        return getJson("Login failed")
 
     if hash(password).encode() == byte_hashed_password:
-        return HttpResponse("Done")
-    return HttpResponse("Password is invalid")
+        return getJson("Login successfully!")
+
+    return getJson("Username not found or password is incorrect!", 401)
 
 def handleUpdatePassword(request):
-    username = request.GET.get("username", None)
-    old_password = request.GET.get("old_password", None)
-    new_password = request.GET.get("new_password", None)
+    username = request.POST.get("username", None)
+    old_password = request.POST.get("password", None)
+    new_password = request.POST.get("new-password", None)
     if not username or not old_password or not new_password:
-        return HttpResponse("Username, old password and new password are required")
+        return getJson("Username, password and new-password are required")
 
     byte_hashed_old_password = None
     try:
         byte_hashed_old_password = s3.get_object(Bucket=BUCKET_NAME, Key=username)['Body'].read()
     except s3.exceptions.NoSuchKey:
-        return HttpResponse("Username not found")
+        return getJson("Username not found", 404)
     except:
-        return HttpResponse("Update password failed")
+        return getJson("Update password failed")
     
     if hash(old_password).encode() != byte_hashed_old_password:
-        return HttpResponse("Password doesn't match")
+        return getJson("Password doesn't match")
 
     # re-upload file with hashed new password as file content
     byte_hashed_new_password = hash(new_password).encode()
     s3.put_object(Body=byte_hashed_new_password, Key=username, Bucket=BUCKET_NAME)
 
-    return HttpResponse("Done")
+    return getJson("Change password successfully!")
 
-def index(request):
-    command = request.GET.get('command', None)
-    if not command : return HttpResponse("Please enter a command")
+def register(request):
+    return handleNewUser(request)
 
-    if command == 'newuser': return handleNewUser(request)
-    elif command == 'login': return handleLogin(request)
-    elif command == 'updatepassword': return handleUpdatePassword(request)
-    else: return HttpResponse("Invalid command")
+def login(request):
+    return handleLogin(request)
+
+def updatePassword(request):
+    return handleUpdatePassword(request)
