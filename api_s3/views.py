@@ -64,7 +64,7 @@ def handleNewUser(request):
 
         return getJson("Create account successfully!")
     
-    return getJson("This username is already existed!")
+    return getJson("This username is already existed!", 409)
 
 def handleLogin(request):
     username = request.POST.get("username", None)
