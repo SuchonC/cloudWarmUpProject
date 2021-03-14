@@ -6,4 +6,4 @@
 5. cd <project_name>
 6. sudo vim <project_name>/settings.py
 7. Add your IP to ALLOWED_HOST. ex. ALLOWED_HOST = ['IP']
-8. python3 manage.py runserver
+8. python3 manage.py runserver 0.0.0.0:8000
