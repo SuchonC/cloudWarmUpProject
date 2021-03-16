@@ -44,8 +44,11 @@ def verify_password(hashed_password, password):
 
 def getJson(message, code=200):
     return JsonResponse({
-        "message": message
-    }, status = code)
+        "statusCode": code,
+        "body": {
+            "message": message
+            }
+        }, status=code)
 
 def handleNewUser(request):
     body = json.loads(request.body.decode())
