@@ -82,7 +82,7 @@ def handleLogin(request):
     try:
         byte_hashed_password = s3.get_object(Bucket=BUCKET_NAME, Key=username)['Body'].read()
     except s3.exceptions.NoSuchKey:
-        return getJson("Username not found or password is incorrect!")
+        return getJson("Username not found or password is incorrect!", 401)
     except:
         return getJson("Login failed")
 
