@@ -3,6 +3,7 @@ import boto3
 import os
 import hashlib
 import base64
+import json
 
 if not "AWS_ACCESS_KEY_ID" in os.environ:
     print("Environment AWS_ACCESS_KEY_ID not found")
@@ -47,8 +48,9 @@ def getJson(message, code=200):
     }, status = code)
 
 def handleNewUser(request):
-    username = request.POST.get("username", None)
-    password = request.POST.get("password", None)
+    body = json.loads(request.body.decode())
+    username = body['username']
+    password = body['password']
     if not username or not password:
         return getJson("Username and password are required")
 
@@ -67,8 +69,9 @@ def handleNewUser(request):
     return getJson("This username is already existed!", 409)
 
 def handleLogin(request):
-    username = request.POST.get("username", None)
-    password = request.POST.get("password", None)
+    body = json.loads(request.body.decode())
+    username = body['username']
+    password = body['password']
     if not username or not password:
         return getJson("Username and password are required")
     
@@ -86,9 +89,11 @@ def handleLogin(request):
     return getJson("Username not found or password is incorrect!", 401)
 
 def handleUpdatePassword(request):
-    username = request.POST.get("username", None)
-    old_password = request.POST.get("password", None)
-    new_password = request.POST.get("new-password", None)
+    body = json.loads(request.body.decode())
+    username = body['username']
+    old_password = body['password']
+    new_password = body['new-password']
+
     if not username or not old_password or not new_password:
         return getJson("Username, password and new-password are required")
 
